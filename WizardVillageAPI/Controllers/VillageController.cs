@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.Mvc;
 using WizardVillageAPI.Data;
 using WizardVillageAPI.Models.DTO;
 
@@ -8,6 +9,13 @@ namespace WizardVillageAPI.Controllers
   [ApiController]
   public class VillageController : ControllerBase
   {
+    private readonly ILogger<VillageController> _logger;
+
+    public VillageController(ILogger<VillageController> logger)
+    {
+      _logger = logger;
+    }
+
     //GET ALL
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -22,6 +30,7 @@ namespace WizardVillageAPI.Controllers
     {
       if (id == 0)
       {
+        _logger.LogError("Error al consultar la Villa con el Id: " + id);
         return BadRequest();
       }
       var village = VillageStore.VillageList.FirstOrDefault(x => x.Id == id);
@@ -46,7 +55,7 @@ namespace WizardVillageAPI.Controllers
         return BadRequest(ModelState);
       }
 
-      if (VillageStore.VillageList.FirstOrDefault(x => x.Nombre.ToLower() == villa.Nombre.ToLower()) != null)
+      if (VillageStore.VillageList.FirstOrDefault(x => x.Nombre?.ToLower() == villa.Nombre?.ToLower()) != null)
       {
         ModelState.AddModelError("NombreExiste", "Ya existe una Villa con ese nombre en la lista de registros");
         return BadRequest(ModelState);
@@ -70,7 +79,6 @@ namespace WizardVillageAPI.Controllers
     //PUT
     [HttpPut("{id}")]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public IActionResult UpdateVilla(int id, [FromBody] VillageDto villa)
     {
@@ -83,6 +91,29 @@ namespace WizardVillageAPI.Controllers
       Selectvilla.Nombre = villa.Nombre;
       Selectvilla.MetrosCuadrados = villa.MetrosCuadrados;
       Selectvilla.Ocupantes = villa.Ocupantes;
+
+      return NoContent();
+    }
+
+    //PATCH
+    [HttpPatch("{id}")]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public IActionResult UpdatePatchVilla(int id, JsonPatchDocument<VillageDto> patchDto)
+    {
+      if (patchDto == null || id == 0)
+      {
+        return BadRequest();
+      }
+
+      var Selectvilla = VillageStore.VillageList.FirstOrDefault(x => x.Id == id);
+
+      patchDto.ApplyTo(Selectvilla, ModelState);
+
+      if (!ModelState.IsValid)
+      {
+        return BadRequest(ModelState);
+      }
 
       return NoContent();
     }
